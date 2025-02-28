@@ -1,7 +1,6 @@
 package com.example.messageRouting.entity;
 
-import java.util.List;
-
+import java.util.Map;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
 
@@ -10,13 +9,12 @@ import lombok.*;
 
 @Data
 @Document(collection = "processFlow")
-@Getter
-@Setter
 @NoArgsConstructor
 @AllArgsConstructor
 public class ProcessFlow {
-	@Field("_id")
-	private String id;
+
+    @Field("_id")
+    private String id;
 
     @Field("scenario")
     private String scenario;
@@ -28,24 +26,67 @@ public class ProcessFlow {
     private int instance;
 
     @Field("hops")
-    private List<Hop> hops;
-    
+    private Map<String, Hop> hops;
+
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class Hop {
 
-        @Field("hopName")
-        private String hopName;
+        @Field("process")
+        private String process;
 
         @Field("inputQueue")
         private String inputQueue;
 
-        @Field("outputQueue")
+        @Field("nextHop")
         @Nullable
-        private String outputQueue;
+        private String nextHop;
 
-        @Field("process")
+//        @Field("route")
+//        private Map<String, RouteHop> route;
+     // To handle category-subcategory mappings
+        @Field("categories")
         @Nullable
-        private String process;
+        private Map<String, Map<String, SubCategoryHop>> categories; 
     }
 
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class SubCategoryHop {
+
+        @Field("process")
+        private String process;
+
+        @Field("inputQueue")
+        private String inputQueue;
+
+        @Field("nextHop")
+        private String nextHop;
+        
+        @Field("xsltContent")
+        @Nullable
+        private String xsltContent;
+        
+     // Each subcategory can have its own route
+        @Field("route")
+        private Map<String, RouteHop> route; 
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class RouteHop {
+
+        @Field("process")
+        private String process;
+
+        @Field("inputQueue")
+        private String inputQueue;
+
+        @Field("nextHop")
+        @Nullable
+        private String nextHop;
+    }
 }

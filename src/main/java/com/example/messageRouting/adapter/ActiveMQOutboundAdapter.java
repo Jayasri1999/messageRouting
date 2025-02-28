@@ -1,6 +1,5 @@
 package com.example.messageRouting.adapter;
 
-
 import java.lang.reflect.Method;
 
 import org.apache.camel.Exchange;
@@ -12,14 +11,15 @@ import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
 
 @Component
-public class ExitAdapter extends RouteBuilder{
+public class ActiveMQOutboundAdapter extends RouteBuilder{
 	@Autowired
     private ProcessFlowCache processFlowCache;
+	
 	@Override
     public void configure() throws Exception {
-        from("activemq:exit.in")
-        	.process(exchange -> {
-        		String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
+        from("activemq:outbound.in")
+            .process(exchange -> {
+            	String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
                 ProcessFlow processFlow = processFlowCache.getProcessFlowById(processFlowId);
                 String externalHopString = exchange.getIn().getHeader("externalHop", String.class);
         		ProcessFlow.Hop externalHop = processFlow.getHops().get(externalHopString);
@@ -28,16 +28,18 @@ public class ExitAdapter extends RouteBuilder{
                 String routeHopString = exchange.getIn().getHeader("nextHop", String.class);
                 ProcessFlow.RouteHop routeHop = externalHop.getCategories().get(category).get(subCategory).getRoute().get(routeHopString);
                 invokeMethod(routeHop.getProcess(), exchange);
-                String nextHop = routeHop.getNextHop();
-                exchange.getIn().setHeader("nextHop", nextHop);
-                exchange.getIn().setHeader("nextQueue", externalHop.getCategories().get(category).get(subCategory).getRoute().get(nextHop).getInputQueue());
-        	
-        	})
-        	.toD("activemq:${header.nextQueue}");
-	}
+            })
+            .toD("activemq:${header.nextQueue}");
+    }
 	
-	public void exitProcess1(Exchange exchange){
-		log.info("+++++++In exitProcess1+++++++++++");
+	public void outboundProcess1(Exchange exchange) {
+		log.info("++Inside outboundProcess1++");
+		String scenario = exchange.getIn().getHeader("scenario", String.class);
+        String country = exchange.getIn().getHeader("country", String.class);
+        Integer instance = exchange.getIn().getHeader("instance", Integer.class);
+     // Store the message in the corresponding dynamic queue output based on headers
+        String nextQueue = scenario + "." + country + "." + instance+".out";
+        exchange.getIn().setHeader("nextQueue", nextQueue);
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {

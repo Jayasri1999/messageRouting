@@ -10,30 +10,28 @@ import java.util.concurrent.TimeUnit;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import com.example.messageRouting.entity.ProcessFlow;
-import com.example.messageRouting.repository.ProcessFlowRepository;
+import com.example.messageRouting.entity.ProcessFlow2;
+import com.example.messageRouting.repository.ProcessFlow2Repository;
 
-import lombok.extern.slf4j.Slf4j;
+import lombok.extern.java.Log;
+
 
 @Component
-@Slf4j
-public class ProcessFlowCache {
+public class ProcessFlow2Cache {
+	@Autowired
+	private ProcessFlow2Repository processFlowRepository;
 
-    @Autowired
-    private ProcessFlowRepository processFlowRepository;
-
-    private final Map<String, ProcessFlow> processFlowCache = new ConcurrentHashMap<>();
-    private final Map<String, List<String>> hopKeyIdsCache = new ConcurrentHashMap<>();
+    private final Map<String, ProcessFlow2> cache = new ConcurrentHashMap<>();
+    private final Map<String, List<String>> idsCache = new ConcurrentHashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
-
-    public ProcessFlowCache() {
+    public ProcessFlow2Cache() {
         // Schedule cache refresh every 1 hour
         scheduler.scheduleAtFixedRate(this::refreshCache, 0, 1, TimeUnit.HOURS);
     }
 
-    public ProcessFlow getProcessFlowById(String id) {
-    	String key = id;
-        ProcessFlow processFlow = processFlowCache.get(key);
+    public ProcessFlow2 getProcessFlowById(String id) {
+        String key = id;
+        ProcessFlow2 processFlow = cache.get(key);
         System.out.println("+++++++++++Process Flow+++++++++++++++ "+processFlow);
         if (processFlow == null) {
             // Fetch from DB if not in cache
@@ -41,37 +39,36 @@ public class ProcessFlowCache {
         	processFlow = processFlowRepository.findById(key)
     				.orElseThrow(() -> new IllegalArgumentException("ProcessFlow not found"));
             if (processFlow != null) {
-            	processFlowCache.put(key, processFlow);
+                cache.put(key, processFlow);
             }
             
         }
+
         return processFlow;
     }
-
-
-    public List<String> getProcessFlowIdsByHopKey(String hopKey) {
-    	String key=hopKey;
-    	List<String> ids = hopKeyIdsCache.get(key);
-    	System.out.println("+++++++++++Get Process Flow Ids+++++++++++++++ ");
-    	if (ids == null) {
+    
+    public List<String>  getProcessFlowIds() {
+        String key = "1";
+        List<String> idsList= idsCache.get(key);
+        System.out.println("+++++++++++Get Process Flow Ids+++++++++++++++ ");
+        if (idsList == null) {
             // Fetch from DB if not in cache
         	System.out.println("+++++++++++Ids Data is not in cache+++++++++++++++ ");
-        	ids = processFlowRepository.findAllIdsByHopKey(key);
-            if (ids != null) {
-            	hopKeyIdsCache.put(key, ids);
-            	System.out.println("+++++++++++Ids are fetched+++++++++++++++ "+ids.size());
+        	idsList = processFlowRepository.findAllIds();
+            if (idsList != null) {
+            	idsCache.put(key, idsList);
+            	System.out.println("+++++++++++Ids are fetched+++++++++++++++ "+idsList.size());
             }else {
             	System.out.println("+++++++++++Ids are not fetched from db+++++++++++++++ ");
             }
             
         }
-        return ids;
-    }
 
+        return idsList;
+    }
 
     private void refreshCache() {
-        log.info("Refreshing processFlowCache and hopKeyIdsCache...");
-        processFlowCache.clear();
-        hopKeyIdsCache.clear();
+        cache.clear();
     }
+
 }

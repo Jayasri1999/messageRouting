@@ -6,37 +6,46 @@ import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import com.example.messageRouting.adapter.cache.CategoryRoutingCache;
+import com.example.messageRouting.adapter.cache.ProcessFlowCache;
+import com.example.messageRouting.entity.ProcessFlow;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Component
 public class ActionFigureToysProcessFlow extends RouteBuilder{
 	@Autowired
-	CategoryRoutingCache categoryRoutingCache;
+	ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
         from("activemq:kidsToys.actionFigures.in")
             .log("Processing Action Figure Toys Order")
             .process(exchange -> {
-            	String methodName=exchange.getIn().getHeader("routingName",String.class);
-            	invokeMethod(methodName, exchange);
-            	exchange.getIn().setHeader("nextHop", categoryRoutingCache.getCategoryRouting("kidsToys", "actionFigures").getCatOutputQueue());     
-            })
-            .toD("activemq:${header.nextHop}");
+            	// Fetch process flow details from headers
+                String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
+                ProcessFlow processFlow = processFlowCache.getProcessFlowById(processFlowId);
+                String currentHopString = exchange.getIn().getHeader("externalHop", String.class);
+                log.info("++++externalHop:"+currentHopString);
+        		ProcessFlow.Hop currentHop = processFlow.getHops().get(currentHopString);
+        		invokeMethod(currentHop.getProcess(), exchange);
+        		String category=exchange.getIn().getHeader("category",String.class);
+                String subCategory=exchange.getIn().getHeader("subCategory",String.class);
+                ProcessFlow.SubCategoryHop subCategoryHop = currentHop.getCategories().get(category).get(subCategory);
+                String nextHop = subCategoryHop.getNextHop();
+                exchange.getIn().setHeader("xsltContent", subCategoryHop.getXsltContent());
+                exchange.getIn().setHeader("nextHop", nextHop);
+                exchange.getIn().setHeader("nextQueue", subCategoryHop.getRoute().get(nextHop).getInputQueue());
+            	})
+            .toD("activemq:${header.nextQueue}");
     }
 	
-	public void actionFigureToysProcessFlow(Exchange exchange) throws JsonMappingException, JsonProcessingException {
-		String jsonPayload = exchange.getIn().getBody(String.class);
-        ObjectMapper mapper = new ObjectMapper();
-        JsonNode order = mapper.readTree(jsonPayload);
-        ((ObjectNode) order.at("/order")).put("specialBadge", "Limited Edition");
-        log.info("+++++++Added limited edition badge for action figure order++++++++++");
-        exchange.getIn().setBody(mapper.writeValueAsString(order));
+	public void actionFiguresProcessFlow(Exchange exchange) throws JsonMappingException, JsonProcessingException {
+		log.info("+++++++In actionFiguresProcessFlow+++++++++++");
+//		String jsonPayload = exchange.getIn().getBody(String.class);
+//        ObjectMapper mapper = new ObjectMapper();
+//        JsonNode order = mapper.readTree(jsonPayload);
+//        ((ObjectNode) order.at("/order")).put("specialBadge", "Limited Edition");
+//        log.info("+++++++Added limited edition badge for action figure order++++++++++");
+//        exchange.getIn().setBody(mapper.writeValueAsString(order));
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {

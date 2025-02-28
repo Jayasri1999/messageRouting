@@ -11,38 +11,39 @@ import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
 
 @Component
-public class EntryAdapter extends RouteBuilder{
+public class CBR extends RouteBuilder{
 	@Autowired
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
-        from("activemq:entry.in")
-            .process(exchange -> {
+		from("activemq:cbr.in")
+			.process(exchange -> {
                 // Fetch process flow details from headers
                 String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
                 ProcessFlow processFlow = processFlowCache.getProcessFlowById(processFlowId);
 
                 if (processFlow != null) {
-                    // Execute the entry process
                 	String currentHopString = exchange.getIn().getHeader("nextHop", String.class);
-        			ProcessFlow.Hop currentHop = processFlow.getHops().get(currentHopString);
-                    log.info("+++++++++++++++in entry.in processFlow.getHops()+++++"+currentHop);
-                    log.info("+++++++++++++++in entry.in currentProcess+++++"+currentHop.getProcess());
+            		ProcessFlow.Hop currentHop = processFlow.getHops().get(currentHopString);
+                    log.info("+++++++++++++++in cbr.in+++++"+currentHop);
+                    log.info("+++++++++++++++in cbr.in currentProcess+++++"+currentHop.getProcess());
                     invokeMethod(currentHop.getProcess(), exchange);
 
-                    // Set the next hop
-                    String nextHop = currentHop.getNextHop();
-                    log.info("+++++++++nextHop+++++++++"+nextHop);
-                    log.info("+++++++++nextHop+++++++++"+processFlow.getHops().get(nextHop));
-                    exchange.getIn().setHeader("nextHop", nextHop);
-                    exchange.getIn().setHeader("nextQueue", processFlow.getHops().get(nextHop).getInputQueue());
+                    String category=exchange.getIn().getHeader("category",String.class);
+                    String subCategory=exchange.getIn().getHeader("subCategory",String.class);
+                    log.info("+++category:"+category+"subcategory:"+subCategory+"+++++++");
+                    //get input queue based on category, subcategory
+                    String nextQueue = currentHop.getCategories().get(category).get(subCategory).getInputQueue();
+                    exchange.getIn().setHeader("nextQueue", nextQueue);
+                    exchange.getIn().setHeader("externalHop",currentHopString);
+                    log.info("+++in cbr:"+currentHopString);
                 }
             })
             .toD("activemq:${header.nextQueue}");
-    }
+	}
 	
-	public void entryProcess1(Exchange exchange) {
-		log.info("++Inside EntryProcess1++");
+	public void cbrProcess1(Exchange exchange) {
+		log.info("++Inside cbrProcess1++");
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {
@@ -59,6 +60,4 @@ public class EntryAdapter extends RouteBuilder{
 	        e.printStackTrace();
 	    }
 	}
-
-
 }

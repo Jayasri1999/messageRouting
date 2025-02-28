@@ -1,65 +1,165 @@
 [{
-  "_id": "sc1.mx.1",
-  "scenario": "sc1",
-  "country": "mx",
-  "instance": 1,
-  "hops": [
-    {
-      "hopName": "InboundAdapter",
-      "inputQueue": "sc1.mx.1.in",
-      "outputQueue": "entry.in"
-    },
-    {
-      "hopName": "entryAdapter",
-      "process": "entryProcess1",
-      "inputQueue": "entry.in",
-      "outputQueue": "transform.in"
-    },
-    {
-      "hopName": "transformAdapter",
-      "process": "transformProcess1",
-      "inputQueue": "transform.in"
-    },
-    {
-      "hopName": "exitAdapter",
-      "process": "exitProcess1",
-      "inputQueue": "exit.in",
-      "outputQueue": "outbound.in"
-    },
-    {
-      "hopName": "outboundAdapter",
-      "inputQueue": "outbound.in",
-      "outputQueue": "sc1.mx.1.out"
-    }
-  ]
-},
-{
   "_id": "sc1.us.1",
   "scenario": "sc1",
   "country": "us",
   "instance": 1,
-  "hops": [
-    {
-      "hopName": "InboundAdapter",
-      "inputQueue": "sc1.us.1.in",
-      "outputQueue": "entry.in"
-    },
-    {
-      "hopName": "entryAdapter",
+  "hops": {
+    "entry": {
       "process": "entryProcess1",
       "inputQueue": "entry.in",
-      "outputQueue": "exit.in"
+      "nextHop": "transform"
     },
-    {
-      "hopName": "exitAdapter",
+    "exit1": {
       "process": "exitProcess1",
-      "inputQueue": "exit.in",
-      "outputQueue": "outbound.in"
+      "inputQueue": "exit1.in",
+      "nextHop": "ActiveMQOutboundAdapter"
     },
-    {
-      "hopName": "outboundAdapter",
-      "inputQueue": "outbound.in",
-      "outputQueue": "sc1.us.1.out"
+    "ActiveMQOutboundAdapter": {
+      "process": "outboundProcess1",
+      "inputQueue": "outbound1.in"
+    },
+    "KafkaInboundAdapter": {
+      "process": "inboundProcess1",
+      "inputQueue": "sc1.us.1.in",
+      "nextHop": "entry"
+    },
+    "transform1": {
+      "process": "transformProcess1",
+      "inputQueue": "transform1.in",
+      "nextHop": "exit1"
     }
-  ]
+  }
+},
+{
+  "_id": "sc1.mx.1",
+  "scenario": "sc1",
+  "country": "mx",
+  "instance": 1,
+  "hops": {
+    "ActiveMQInboundAdapter": {
+      "process": "inboundProcess1",
+      "inputQueue": "sc1.mx.1.in",
+      "nextHop": "entry"
+    },
+    "entry": {
+      "process": "entryProcess1",
+      "inputQueue": "entry.in",
+      "nextHop": "transform1"
+    },
+    "cbr": {
+      "categories": {
+        "kidsToys": {
+          "actionFigures": {
+            "process": "actionFiguresProcessFlow",
+            "inputQueue": "kidsToys.actionFigures.in",
+            "nextHop": "transform",
+            "route": {
+              "transform": {
+                "process": "actionFiguresTransform",
+                "inputQueue": "kidsToys.actionFigures.transform.in",
+                "nextHop": "enrich"
+              },
+              "enrich": {
+                "process": "actionFiguresEnrichment",
+                "inputQueue": "kidsToys.actionFigures.enrich.in",
+                "nextHop": "splitter"
+              },
+              "splitter": {
+                "process": "splitterProcess1",
+                "inputQueue": "kidsToys.actionFigures.splitter.in",
+                "nextHop": "exit"
+              },
+              "exit": {
+                "process": "exitProcess1",
+                "inputQueue": "exit.in",
+                "nextHop": "ActiveMQOutboundAdapter"
+              },
+              "ActiveMQOutboundAdapter": {
+                "process": "outboundProcess1",
+                "inputQueue": "outbound.in"
+              }
+            },
+            "xsltContent": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n <xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n     <xsl:output method=\"text\" encoding=\"UTF-8\"/>\n \n     <xsl:template match=\"/\">\n         {\n             \"order\": {\n                 \"id\": \"<xsl:value-of select=\"/order/id\"/>\",\n                 \"customer\": \"<xsl:value-of select=\"/order/customer\"/>\",\n                 \"amount\": \"<xsl:value-of select=\"/order/amount\"/>\",\n                 \"country\": \"<xsl:value-of select=\"/order/country\"/>\",\n                 \"category\": {\n                     \"name\": \"<xsl:value-of select=\"/order/category/name\"/>\",\n                     \"subcategories\": [\n                         <xsl:for-each select=\"/order/category/subcategories/subcategory\">\n                             {\n                                 \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                 \"items\": [\n                                     <xsl:for-each select=\"items/item\">\n                                         {\n                                             \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                             \"price\": \"<xsl:value-of select=\"price\"/>\",\n \t\t\t\t\t    \"ageGroup\": \"<xsl:value-of select=\"ageGroup\"/>\"\n                                         }<xsl:if test=\"position() != last()\">,</xsl:if>\n                                     </xsl:for-each>\n                                 ]\n                             }<xsl:if test=\"position() != last()\">,</xsl:if>\n                         </xsl:for-each>\n                     ]\n                 }\n             }\n         }\n     </xsl:template>\n </xsl:stylesheet>"
+          },
+          "generic": {
+            "process": "kidsToysProcessFlow",
+            "inputQueue": "kidsToys.generic.in",
+            "nextHop": "transform",
+            "route": {
+              "transform": {
+                "process": "genericTransform",
+                "inputQueue": "kidsToys.generic.transform.in",
+                "nextHop": "enrich"
+              },
+              "splitter": {
+                "process": "splitterProcess1",
+                "inputQueue": "kidsToys.actionFigures.splitter.in",
+                "nextHop": "exit"
+              },
+              "exit": {
+                "process": "exitProcess1",
+                "inputQueue": "exit.in",
+                "nextHop": "ActiveMQOutboundAdapter"
+              },
+              "ActiveMQOutboundAdapter": {
+                "process": "outboundProcess1",
+                "inputQueue": "outbound.in"
+              }
+            },
+            "xsltContent": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n <xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n     <xsl:output method=\"text\" encoding=\"UTF-8\"/>\n \n     <xsl:template match=\"/\">\n         {\n             \"order\": {\n                 \"id\": \"<xsl:value-of select=\"/order/id\"/>\",\n                 \"customer\": \"<xsl:value-of select=\"/order/customer\"/>\",\n                 \"amount\": \"<xsl:value-of select=\"/order/amount\"/>\",\n                 \"country\": \"<xsl:value-of select=\"/order/country\"/>\",\n                 \"category\": {\n                     \"name\": \"<xsl:value-of select=\"/order/category/name\"/>\",\n                     \"subcategories\": [\n                         <xsl:for-each select=\"/order/category/subcategories/subcategory\">\n                             {\n                                 \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                 \"items\": [\n                                     <xsl:for-each select=\"items/item\">\n                                         {\n                                             \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                             \"price\": \"<xsl:value-of select=\"price\"/>\",\n \t\t\t\t\t    \"ageGroup\": \"<xsl:value-of select=\"ageGroup\"/>\"\n                                         }<xsl:if test=\"position() != last()\">,</xsl:if>\n                                     </xsl:for-each>\n                                 ]\n                             }<xsl:if test=\"position() != last()\">,</xsl:if>\n                         </xsl:for-each>\n                     ]\n                 }\n             }\n         }\n     </xsl:template>\n </xsl:stylesheet>"
+          }
+        },
+        "shoes": {
+          "sneakers": {
+            "process": "shoeProcessFlow",
+            "inputQueue": "shoes.sneakers.in",
+            "nextHop": "splitter",
+            "route": {
+              "enrich": {
+                "process": "sneakersEnrich",
+                "inputQueue": "shoes.sneakers.enrich.in",
+                "nextHop": "splitter"
+              },
+              "splitter": {
+                "process": "splitterProcess1",
+                "inputQueue": "shoes.sneakers.splitter.in",
+                "nextHop": "exit"
+              },
+              "exit": {
+                "process": "exitProcess1",
+                "inputQueue": "exit.in",
+                "nextHop": "ActiveMQOutboundAdapter"
+              },
+              "ActiveMQOutboundAdapter": {
+                "process": "outboundProcess1",
+                "inputQueue": "outbound.in"
+              }
+            },
+            "xsltContent": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n <xsl:stylesheet version=\"1.0\" xmlns:xsl=\"http://www.w3.org/1999/XSL/Transform\">\n     <xsl:output method=\"text\" encoding=\"UTF-8\"/>\n \n     <xsl:template match=\"/\">\n         {\n             \"order\": {\n                 \"id\": \"<xsl:value-of select=\"/order/id\"/>\",\n                 \"customer\": \"<xsl:value-of select=\"/order/customer\"/>\",\n                 \"amount\": \"<xsl:value-of select=\"/order/amount\"/>\",\n                 \"country\": \"<xsl:value-of select=\"/order/country\"/>\",\n                 \"category\": {\n                     \"name\": \"<xsl:value-of select=\"/order/category/name\"/>\",\n                     \"subcategories\": [\n                         <xsl:for-each select=\"/order/category/subcategories/subcategory\">\n                             {\n                                 \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                 \"items\": [\n                                     <xsl:for-each select=\"items/item\">\n                                         {\n                                             \"name\": \"<xsl:value-of select=\"name\"/>\",\n                                             \"price\": \"<xsl:value-of select=\"price\"/>\",\n \t\t\t\t\t    \"size\": \"<xsl:value-of select=\"size\"/>\"\n                                         }<xsl:if test=\"position() != last()\">,</xsl:if>\n                                     </xsl:for-each>\n                                 ]\n                             }<xsl:if test=\"position() != last()\">,</xsl:if>\n                         </xsl:for-each>\n                     ]\n                 }\n             }\n         }\n     </xsl:template>\n </xsl:stylesheet>"
+          }
+        }
+      },
+      "inputQueue": "cbr.in",
+      "process": "cbrProcess1"
+    },
+    "splitter1": {
+      "process": "splitterProcess1",
+      "inputQueue": "splitter1.in",
+      "nextHop": "ActiveMQOutboundAdapter"
+    },
+    "exit1": {
+      "process": "exitProcess1",
+      "inputQueue": "exit1.in",
+      "nextHop": "ActiveMQOutboundAdapter"
+    },
+    "ActiveMQOutboundAdapter": {
+      "process": "outboundProcess1",
+      "inputQueue": "outbound1.in"
+    },
+    "transform1": {
+      "process": "transformProcess1",
+      "inputQueue": "transform1.in",
+      "nextHop": "cbr"
+    }
+  }
 }]

@@ -1,39 +1,32 @@
 package com.example.messageRouting.adapter;
 
 import java.lang.reflect.Method;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
 
 @Component
-public class EntryAdapter extends RouteBuilder{
+public class Transform1Adapter extends RouteBuilder{
 	@Autowired
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
-        from("activemq:entry.in")
+        from("activemq:transform1.in")
             .process(exchange -> {
                 // Fetch process flow details from headers
                 String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
                 ProcessFlow processFlow = processFlowCache.getProcessFlowById(processFlowId);
 
                 if (processFlow != null) {
-                    // Execute the entry process
                 	String currentHopString = exchange.getIn().getHeader("nextHop", String.class);
         			ProcessFlow.Hop currentHop = processFlow.getHops().get(currentHopString);
-                    log.info("+++++++++++++++in entry.in processFlow.getHops()+++++"+currentHop);
-                    log.info("+++++++++++++++in entry.in currentProcess+++++"+currentHop.getProcess());
                     invokeMethod(currentHop.getProcess(), exchange);
 
-                    // Set the next hop
+                 // Set the next hop
                     String nextHop = currentHop.getNextHop();
-                    log.info("+++++++++nextHop+++++++++"+nextHop);
-                    log.info("+++++++++nextHop+++++++++"+processFlow.getHops().get(nextHop));
                     exchange.getIn().setHeader("nextHop", nextHop);
                     exchange.getIn().setHeader("nextQueue", processFlow.getHops().get(nextHop).getInputQueue());
                 }
@@ -41,8 +34,9 @@ public class EntryAdapter extends RouteBuilder{
             .toD("activemq:${header.nextQueue}");
     }
 	
-	public void entryProcess1(Exchange exchange) {
-		log.info("++Inside EntryProcess1++");
+	public void transformProcess1(Exchange exchange) {
+		log.info("++Inside transformProcess1++");
+        
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {
@@ -59,6 +53,4 @@ public class EntryAdapter extends RouteBuilder{
 	        e.printStackTrace();
 	    }
 	}
-
-
 }

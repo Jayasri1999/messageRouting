@@ -11,8 +11,11 @@ import com.example.messageRouting.entity.ProcessFlow;
 
 @Repository
 public interface ProcessFlowRepository extends MongoRepository<ProcessFlow, String> {
-	@Query("{ '_id': ?0 }")
-	Optional<ProcessFlow> findById(String id);
-    @Query(value = "{}", fields = "{_id: 1}")
-    List<String> findAllIds();
+
+    @Query("{ '_id': ?0 }")
+    Optional<ProcessFlow> findById(String id);
+
+    // Fetch all IDs where hops contain a specific key
+    @Query(value = "{ 'hops.?0': { $exists: true } }", fields = "{ _id: 1 }")
+    List<String> findAllIdsByHopKey(String hopKey);
 }
