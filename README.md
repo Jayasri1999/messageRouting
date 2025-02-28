@@ -30,7 +30,7 @@ Steps:
 
 -> To access Active MQ: http://localhost:8161/admin username:admin & password:admin
 
--> Clone the repository git clone https://github.com/Jayasri1999/cbr.git
+-> Clone the repository git clone https://github.com/Jayasri1999/messageRouting.git
 
 -> Insert the documents in processFlow and categoryRouting collections: check data/ folder for sample documents
 
