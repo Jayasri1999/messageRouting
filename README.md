@@ -16,7 +16,7 @@ Process:
 
 -> If transform process exists for particular scenario, transform adapter will consume payload from transform.in and will transform the XML data to JSON based on the XSLT content. Then, it sends the payload to next queue.
 
--> If category routing process exists for particular category and subcategory, adapter will consume payload from respective queue and will process the JSON data accordingly. Then, it sends the payload to Splitter queue.
+-> If cbr exists, then data will be routed to different routes based on the category and subcategory in the input message. The route might contain different hops like transform and enrich.
 
 -> If the data contains numerous items, then splitter will split the message into number of small messages and sends them as individual messages to next queue.
 
@@ -30,7 +30,7 @@ Steps:
 
 -> To access Active MQ: http://localhost:8161/admin username:admin & password:admin
 
--> Clone the repository git clone https://github.com/Jayasri1999/cbr.git
+-> Clone the repository git clone https://github.com/Jayasri1999/messageRouting.git
 
 -> Insert the documents in processFlow and categoryRouting collections: check data/ folder for sample documents
 
