@@ -33,17 +33,24 @@ public class ProcessFlowCache {
 
     public ProcessFlow getProcessFlowById(String id) {
     	String key = id;
-        ProcessFlow processFlow = processFlowCache.get(key);
-        System.out.println("+++++++++++Process Flow+++++++++++++++ "+processFlow);
-        if (processFlow == null) {
-            // Fetch from DB if not in cache
-        	System.out.println("+++++++++++Data is not in cache+++++++++++++++ key:"+key);
-        	processFlow = processFlowRepository.findById(key)
-    				.orElseThrow(() -> new IllegalArgumentException("ProcessFlow not found"));
-            if (processFlow != null) {
-            	processFlowCache.put(key, processFlow);
-            }
-            
+        ProcessFlow processFlow=null;
+		try {
+			processFlow = processFlowCache.get(key);
+			System.out.println("+++++++++++Process Flow+++++++++++++++ "+processFlow);
+			if (processFlow == null) {
+			    // Fetch from DB if not in cache
+				System.out.println("+++++++++++Data is not in cache+++++++++++++++ key:"+key);
+				processFlow = processFlowRepository.findById(key)
+						.orElseThrow(() -> new IllegalArgumentException("ProcessFlow not found"));
+			    if (processFlow != null) {
+			    	processFlowCache.put(key, processFlow);
+			    }
+			    
+			}
+		} catch (IllegalArgumentException e) {
+            log.error("Error: processFlow not found. Key: {}", key, e);
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching processfFlow for key: {}", key, e);
         }
         return processFlow;
     }
@@ -51,19 +58,26 @@ public class ProcessFlowCache {
 
     public List<String> getProcessFlowIdsByHopKey(String hopKey) {
     	String key=hopKey;
-    	List<String> ids = hopKeyIdsCache.get(key);
-    	System.out.println("+++++++++++Get Process Flow Ids+++++++++++++++ ");
-    	if (ids == null) {
-            // Fetch from DB if not in cache
-        	System.out.println("+++++++++++Ids Data is not in cache+++++++++++++++ ");
-        	ids = processFlowRepository.findAllIdsByHopKey(key);
-            if (ids != null) {
-            	hopKeyIdsCache.put(key, ids);
-            	System.out.println("+++++++++++Ids are fetched+++++++++++++++ "+ids.size());
-            }else {
-            	System.out.println("+++++++++++Ids are not fetched from db+++++++++++++++ ");
-            }
-            
+    	List<String> ids = null;
+		try {
+			ids = hopKeyIdsCache.get(key);
+			System.out.println("+++++++++++Get Process Flow Ids+++++++++++++++ ");
+			if (ids == null) {
+			    // Fetch from DB if not in cache
+				System.out.println("+++++++++++Ids Data is not in cache+++++++++++++++ ");
+				ids = processFlowRepository.findAllIdsByHopKey(key);
+			    if (ids != null) {
+			    	hopKeyIdsCache.put(key, ids);
+			    	System.out.println("+++++++++++Ids are fetched+++++++++++++++ "+ids.size());
+			    }else {
+			    	System.out.println("+++++++++++Ids are not fetched from db+++++++++++++++ ");
+			    }
+			    
+			}
+		} catch (IllegalArgumentException e) {
+            log.error("Error: processFlow not found for HopKey. Key: {}", key, e);
+        } catch (Exception e) {
+            log.error("Unexpected error while fetching processFlow for Hopkey: {}", key, e);
         }
         return ids;
     }

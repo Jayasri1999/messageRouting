@@ -16,6 +16,9 @@ public class CBR extends RouteBuilder{
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+        .handled(true)
+        .log("Exception occured in route: ${exception.message}");
 		from("activemq:cbr.in")
 			.process(exchange -> {
                 // Fetch process flow details from headers
@@ -43,7 +46,11 @@ public class CBR extends RouteBuilder{
 	}
 	
 	public void cbrProcess1(Exchange exchange) {
-		log.info("++Inside cbrProcess1++");
+		try {
+			log.info("++Inside cbrProcess1++");
+		} catch (Exception e) {
+			log.error("Error processing cbr Process1", e);
+		}
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {

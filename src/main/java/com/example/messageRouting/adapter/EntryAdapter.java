@@ -16,6 +16,9 @@ public class EntryAdapter extends RouteBuilder{
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+        .handled(true)
+        .log("Exception occured in route: ${exception.message}");
         from("activemq:entry.in")
             .process(exchange -> {
                 // Fetch process flow details from headers
@@ -42,7 +45,11 @@ public class EntryAdapter extends RouteBuilder{
     }
 	
 	public void entryProcess1(Exchange exchange) {
-		log.info("++Inside EntryProcess1++");
+		try {
+			log.info("++Inside EntryProcess1++");
+		} catch (Exception e) {
+			log.error("Error processing entrty Process1", e);
+		}
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {

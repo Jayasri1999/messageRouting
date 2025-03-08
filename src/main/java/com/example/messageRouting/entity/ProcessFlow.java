@@ -1,5 +1,6 @@
 package com.example.messageRouting.entity;
 
+import java.util.List;
 import java.util.Map;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
@@ -38,6 +39,10 @@ public class ProcessFlow {
 
         @Field("inputQueue")
         private String inputQueue;
+        
+        @Field("services")
+        @Nullable
+        private List<Service> services;
 
         @Field("nextHop")
         @Nullable
@@ -49,6 +54,35 @@ public class ProcessFlow {
         @Field("categories")
         @Nullable
         private Map<String, Map<String, SubCategoryHop>> categories; 
+    }
+    
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class Service {
+
+        @Field("service")
+        private String service;
+
+        @Field("keyXPath")
+        @Nullable
+        private String keyXPath;
+        
+        @Field("replaceXPath")
+        @Nullable
+        private String replaceXPath;
+        
+        @Field("refCollection")
+        @Nullable
+        private String refCollection;
+        
+        @Field("decodeType")
+        @Nullable
+        private String decodeType;
+        
+        @Field("encodeType")
+        @Nullable
+        private String encodeType;
     }
 
     @Data

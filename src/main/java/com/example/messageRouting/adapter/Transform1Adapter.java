@@ -14,6 +14,9 @@ public class Transform1Adapter extends RouteBuilder{
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+        .handled(true)
+        .log("Exception occured in route: ${exception.message}");
         from("activemq:transform1.in")
             .process(exchange -> {
                 // Fetch process flow details from headers
@@ -35,7 +38,11 @@ public class Transform1Adapter extends RouteBuilder{
     }
 	
 	public void transformProcess1(Exchange exchange) {
-		log.info("++Inside transformProcess1++");
+		try {
+			log.info("++Inside transformProcess1++");
+		} catch (Exception e) {
+			log.error("Error processing transform Process1 in Transform1 Adapter", e);
+		}
         
 	}
 	

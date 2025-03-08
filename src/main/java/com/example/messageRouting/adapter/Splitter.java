@@ -15,6 +15,9 @@ public class Splitter extends RouteBuilder{
     private ProcessFlowCache processFlowCache;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+        .handled(true)
+        .log("Exception occured in route: ${exception.message}");
         from("activemq:kidsToys.actionFigures.splitter.in")
         	.split().jsonpath("$.order.category.subcategories[0].items[*]")
         	.process(exchange -> {
@@ -36,7 +39,11 @@ public class Splitter extends RouteBuilder{
 	}
 	
 	public void splitterProcess1(Exchange exchange){
-		log.info("+++++++In splitterProcess1+++++++++++");
+		try {
+			log.info("+++++++In splitterProcess1+++++++++++");
+		} catch (Exception e) {
+			log.error("Error processing splitter Process1", e);
+		}
 	}
 	
 	public void invokeMethod(String methodName, Object... params) {

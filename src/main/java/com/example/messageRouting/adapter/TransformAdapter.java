@@ -28,6 +28,9 @@ public class TransformAdapter extends RouteBuilder{
 	private CategoryRoutingCache categoryRoutingCache;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+        .handled(true)
+        .log("Exception occured in route: ${exception.message}");
         from("activemq:transform.in")
             .process(exchange -> {
                 // Fetch process flow details from headers
@@ -59,17 +62,21 @@ public class TransformAdapter extends RouteBuilder{
     }
 	
 	public void transformProcess1(Exchange exchange) {
-		// transform xml to json using XSLT
-        String xsltContent = exchange.getIn().getHeader("xsltContent", String.class);
-        String body = exchange.getIn().getBody(String.class);
-        try {
-        String transformedBody = xmlToJsonTransformXSLT(body, xsltContent);
-        log.info("+++++++++++++++++++++"+transformedBody);
-        exchange.getIn().setBody(transformedBody);
-        } catch (TransformerException e) {
-            log.error("Error during XSLT transformation", e);
-            throw new RuntimeException("Transformation failed", e);
-        }
+		try {
+			// transform xml to json using XSLT
+			String xsltContent = exchange.getIn().getHeader("xsltContent", String.class);
+			String body = exchange.getIn().getBody(String.class);
+			try {
+			String transformedBody = xmlToJsonTransformXSLT(body, xsltContent);
+			log.info("+++++++++++++++++++++"+transformedBody);
+			exchange.getIn().setBody(transformedBody);
+			} catch (TransformerException e) {
+			    log.error("Error during XSLT transformation", e);
+			    throw new RuntimeException("Transformation failed", e);
+			}
+		} catch (Exception e) {
+			log.error("Error processing transform Process1 in Transform Adapter", e);
+		}
         
 	}
 	
