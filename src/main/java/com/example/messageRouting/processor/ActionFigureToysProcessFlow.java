@@ -1,6 +1,8 @@
 package com.example.messageRouting.processor;
 
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
@@ -8,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
+import com.example.messageRouting.service.ErrorLogsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 
@@ -15,8 +18,32 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 public class ActionFigureToysProcessFlow extends RouteBuilder{
 	@Autowired
 	ProcessFlowCache processFlowCache;
+	@Autowired
+	ErrorLogsService errorLogsService;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+		.handled(true) // Mark the exception as handled
+        .process(exchange -> {
+        	String routeId=exchange.getFromRouteId().toString();
+        	String sourceEndpoint=exchange.getFromEndpoint().toString();
+            Exception exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+            String errorMessage = exception.getMessage();
+            String errorDetails = exception.toString();
+            String payload = exchange.getIn().getBody(String.class);
+            Date date= new Date();
+            Timestamp ts = new Timestamp(date.getTime());
+
+            // Log the exception to MongoDB
+            errorLogsService.logError(routeId, sourceEndpoint, errorMessage, errorDetails, payload, ts);
+
+            // Log the exception to the console
+            log.error("Error Code: {}, Error Message: {}, Error Details: {}", errorMessage, errorDetails);
+
+            // Stop further processing
+            exchange.setRouteStop(true);
+        })
+        .to("log:errorLog");
         from("activemq:kidsToys.actionFigures.in")
             .log("Processing Action Figure Toys Order")
             .process(exchange -> {
@@ -38,8 +65,12 @@ public class ActionFigureToysProcessFlow extends RouteBuilder{
             .toD("activemq:${header.nextQueue}");
     }
 	
-	public void actionFiguresProcessFlow(Exchange exchange) throws JsonMappingException, JsonProcessingException {
-		log.info("+++++++In actionFiguresProcessFlow+++++++++++");
+	public void actionFiguresProcessFlow(Exchange exchange) {
+		try {
+			log.info("+++++++In actionFiguresProcessFlow+++++++++++");
+		} catch (Exception e) {
+			log.error("Exception occured in actionFiguresProcessFlow: ",e);
+		}
 //		String jsonPayload = exchange.getIn().getBody(String.class);
 //        ObjectMapper mapper = new ObjectMapper();
 //        JsonNode order = mapper.readTree(jsonPayload);

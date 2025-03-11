@@ -3,6 +3,8 @@ package com.example.messageRouting.adapter;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -19,6 +21,7 @@ import com.example.messageRouting.adapter.cache.CategoryRoutingCache;
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.CategoryRouting;
 import com.example.messageRouting.entity.ProcessFlow;
+import com.example.messageRouting.service.ErrorLogsService;
 
 @Component
 public class TransformAdapter extends RouteBuilder{
@@ -26,11 +29,32 @@ public class TransformAdapter extends RouteBuilder{
     private ProcessFlowCache processFlowCache;
 	@Autowired
 	private CategoryRoutingCache categoryRoutingCache;
+	@Autowired
+	ErrorLogsService errorLogsService;
 	@Override
     public void configure() throws Exception {
 		onException(Exception.class)
-        .handled(true)
-        .log("Exception occured in route: ${exception.message}");
+		.handled(true) // Mark the exception as handled
+        .process(exchange -> {
+        	String routeId=exchange.getFromRouteId().toString();
+        	String sourceEndpoint=exchange.getFromEndpoint().toString();
+            Exception exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+            String errorMessage = exception.getMessage();
+            String errorDetails = exception.toString();
+            String payload = exchange.getIn().getBody(String.class);
+            Date date= new Date();
+            Timestamp ts = new Timestamp(date.getTime());
+
+            // Log the exception to MongoDB
+            errorLogsService.logError(routeId, sourceEndpoint, errorMessage, errorDetails, payload, ts);
+
+            // Log the exception to the console
+            log.error("Error Code: {}, Error Message: {}, Error Details: {}", errorMessage, errorDetails);
+
+            // Stop further processing
+            exchange.setRouteStop(true);
+        })
+        .to("log:errorLog");
         from("activemq:transform.in")
             .process(exchange -> {
                 // Fetch process flow details from headers

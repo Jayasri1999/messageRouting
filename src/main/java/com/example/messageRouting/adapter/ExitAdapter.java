@@ -2,6 +2,8 @@ package com.example.messageRouting.adapter;
 
 
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.builder.RouteBuilder;
@@ -10,16 +12,38 @@ import org.springframework.stereotype.Component;
 
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
+import com.example.messageRouting.service.ErrorLogsService;
 
 @Component
 public class ExitAdapter extends RouteBuilder{
 	@Autowired
-    private ProcessFlowCache processFlowCache;
+    ProcessFlowCache processFlowCache;
+	@Autowired
+	ErrorLogsService errorLogsService;
 	@Override
     public void configure() throws Exception {
 		onException(Exception.class)
-        .handled(true) 
-        .log("Exception occurred in route: ${exception.message}");
+		.handled(true) // Mark the exception as handled
+        .process(exchange -> {
+        	String routeId=exchange.getFromRouteId().toString();
+        	String sourceEndpoint=exchange.getFromEndpoint().toString();
+            Exception exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+            String errorMessage = exception.getMessage();
+            String errorDetails = exception.toString();
+            String payload = exchange.getIn().getBody(String.class);
+            Date date= new Date();
+            Timestamp ts = new Timestamp(date.getTime());
+
+            // Log the exception to MongoDB
+            errorLogsService.logError(routeId, sourceEndpoint, errorMessage, errorDetails, payload, ts);
+
+            // Log the exception to the console
+            log.error("Error Code: {}, Error Message: {}, Error Details: {}", errorMessage, errorDetails);
+
+            // Stop further processing
+            exchange.setRouteStop(true);
+        })
+        .to("log:errorLog");
         from("activemq:exit.in")
         	.process(exchange -> {
         		String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);

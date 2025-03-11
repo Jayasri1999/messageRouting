@@ -1,6 +1,8 @@
 package com.example.messageRouting.adapter;
 
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.util.Date;
 import java.util.List;
 
 
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Component;
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
 import com.example.messageRouting.entity.ProcessFlow.Service;
+import com.example.messageRouting.service.ErrorLogsService;
 
 
 @Component
@@ -21,16 +24,39 @@ public class ActiveMQInboundAdapter  extends RouteBuilder{
 	ProcessFlowCache processFlowCache;
 	@Autowired
 	ApplicationContext applicationContext;
+	@Autowired
+	ErrorLogsService errorLogsService;
 	@Override
 	public void configure()  throws Exception{
 		onException(Exception.class)
-        .handled(true) 
-        .log("Exception occurred in route: ${exception.message}");
+		.handled(true) // Mark the exception as handled
+        .process(exchange -> {
+        	String routeId=exchange.getFromRouteId().toString();
+        	String sourceEndpoint=exchange.getFromEndpoint().toString();
+            Exception exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+            String errorMessage = exception.getMessage();
+            String errorDetails = exception.toString();
+            String payload = exchange.getIn().getBody(String.class);
+            Date date= new Date();
+            Timestamp ts = new Timestamp(date.getTime());
+
+            // Log the exception to MongoDB
+            errorLogsService.logError(routeId, sourceEndpoint, errorMessage, errorDetails, payload, ts);
+
+            // Log the exception to the console
+            log.error("Error Code: {}, Error Message: {}, Error Details: {}", errorMessage, errorDetails);
+
+            // Stop further processing
+            exchange.setRouteStop(true);
+        })
+        .to("log:errorLog");
 		List<String> idsList= processFlowCache.getProcessFlowIdsByHopKey("ActiveMQInboundAdapter");
+		log.info("++++++++++idsList:"+idsList);
         for (String id : idsList) {
         	
         	String processFlowId=id.substring(9,17);
         	log.info("++++++++++inputQueue:"+processFlowId);
+        	log.info("++++++++++inputQueue:"+id);
         	configureInboundRoute(processFlowId);
         }
 	}
@@ -68,6 +94,7 @@ public class ActiveMQInboundAdapter  extends RouteBuilder{
 	
 	public void inboundProcess1(Exchange exchange) {
 		try {
+			log.info("++++++Exchange++++",exchange,"  ---");
 			// Fetch process flow details from cache or DB
 			String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
 	        String categoryName = exchange.getContext().resolveLanguage("xpath")
@@ -98,6 +125,7 @@ public class ActiveMQInboundAdapter  extends RouteBuilder{
 	        }
 			
 		} catch (Exception e) {
+			
 			log.error("Error processing inbound Process1", e);
 		}
         

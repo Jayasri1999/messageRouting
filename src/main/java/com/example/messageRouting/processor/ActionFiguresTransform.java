@@ -3,6 +3,8 @@ package com.example.messageRouting.processor;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.lang.reflect.Method;
+import java.sql.Timestamp;
+import java.util.Date;
 
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
@@ -17,13 +19,38 @@ import org.springframework.stereotype.Component;
 
 import com.example.messageRouting.adapter.cache.ProcessFlowCache;
 import com.example.messageRouting.entity.ProcessFlow;
+import com.example.messageRouting.service.ErrorLogsService;
 
 @Component
 public class ActionFiguresTransform extends RouteBuilder{
 	@Autowired
     private ProcessFlowCache processFlowCache;
+	@Autowired
+	ErrorLogsService errorLogsService;
 	@Override
     public void configure() throws Exception {
+		onException(Exception.class)
+		.handled(true) // Mark the exception as handled
+        .process(exchange -> {
+        	String routeId=exchange.getFromRouteId().toString();
+        	String sourceEndpoint=exchange.getFromEndpoint().toString();
+            Exception exception = exchange.getProperty(Exchange.EXCEPTION_CAUGHT, Exception.class);
+            String errorMessage = exception.getMessage();
+            String errorDetails = exception.toString();
+            String payload = exchange.getIn().getBody(String.class);
+            Date date= new Date();
+            Timestamp ts = new Timestamp(date.getTime());
+
+            // Log the exception to MongoDB
+            errorLogsService.logError(routeId, sourceEndpoint, errorMessage, errorDetails, payload, ts);
+
+            // Log the exception to the console
+            log.error("Error Code: {}, Error Message: {}, Error Details: {}", errorMessage, errorDetails);
+
+            // Stop further processing
+            exchange.setRouteStop(true);
+        })
+        .to("log:errorLog");
         from("activemq:kidsToys.actionFigures.transform.in")
         	.process(exchange -> {
         		String processFlowId = exchange.getIn().getHeader("processFlowId", String.class);
@@ -54,7 +81,7 @@ public class ActionFiguresTransform extends RouteBuilder{
             log.info("+++++++++++++++++++++"+transformedBody);
             exchange.getIn().setBody(transformedBody);
             } catch (TransformerException e) {
-                log.error("Error during XSLT transformation", e);
+                log.error("Error during XSLT transformation in actionFiguresTransform", e);
                 throw new RuntimeException("Transformation failed", e);
             }
 	}
